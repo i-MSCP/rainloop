@@ -1,0 +1,21 @@
+{
+  "name": "imscp/rainloop",
+  "description": "iMSCP rainloop webmail package",
+  "version": "1.7.2.229",
+  "authors": [
+    {
+      "name": "The Rainloop Team",
+      "email": "support@rainloop.net.",
+      "homepage": "http://rainloop.net/"
+    }
+  ],
+  "license": "GPL-2.0+",
+  "keywords": [
+    "imscp",
+    "rainloop",
+    "webmail"
+  ],
+  "require": {
+    "PHP": ">=5.3.0"
+  }
+}
