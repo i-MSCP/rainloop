@@ -1,0 +1,119 @@
+<div class="b-admin-general">
+	<div class="row" data-bind="visible: !contactsSupported">
+		<div class="alert span8" style="margin-top: 10px;">
+			<h4>Notice!</h4>
+			<br />
+			Your system doesn't support contacts.
+			<br />
+			You need to install or enable <strong>PDO (SQLite / MySQL / PostgreSQL)</strong> exstenstion on your server.
+		</div>
+	</div>
+	<div class="form-horizontal" data-bind="visible: contactsSupported">
+		<div class="legend">
+			Contacts
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: enableContacts, label: 'Enable contacts' }
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: contactsSync, label: 'Allow contacts sync (with external CardDAV server)' }
+				}"></div>
+			</div>
+		</div>
+	</div>
+	<div class="form-horizontal" data-bind="visible: contactsSupported">
+		<div class="legend">
+			Storage (PDO)
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+				Type
+			</label>
+			<div class="controls">
+				<select data-bind="options: contactsTypesOptions, value: mainContactsType,
+					optionsText: 'name', optionsValue: 'id', optionsAfterRender: defautOptionsAfterRender, saveTrigger: contactsTypeTrigger"></select>
+				<div data-bind="saveTrigger: contactsTypeTrigger"></div>
+			</div>
+		</div>
+		<br />
+		<div data-bind="visible: 'sqlite' !== contactsType()">
+			<div class="control-group">
+				<label class="control-label">
+				   Dsn
+				</label>
+				<div class="controls">
+					<input type="text" class="span6" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+						data-bind="value: pdoDsn, saveTrigger: pdoDsnTrigger" />
+					<div data-bind="saveTrigger: pdoDsnTrigger"></div>
+					<blockquote style="margin: 10px 0 0 0">
+						<p class="muted">
+							mysql:host=127.0.0.1;port=3306;dbname=rainloop
+							<br />
+							pgsql:host=127.0.0.1;port=5432;dbname=rainloop
+						</p>
+					</blockquote>
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label">
+				   User
+				</label>
+				<div class="controls">
+					<input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+						data-bind="value: pdoUser, saveTrigger: pdoUserTrigger" />
+					<div data-bind="saveTrigger: pdoUserTrigger"></div>
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label">
+				   Password
+				</label>
+				<div class="controls">
+					<input type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+						data-bind="value: pdoPassword, saveTrigger: pdoPasswordTrigger" />
+					<div data-bind="saveTrigger: pdoPasswordTrigger"></div>
+				</div>
+			</div>
+			<div class="control-group">
+				<div class="controls">
+					<a class="btn" data-bind="command: testContactsCommand, css: { 'btn-success': testContactsSuccess, 'btn-danger': testContactsError }">
+						<i data-bind="css: {'icon-info': !testing(), 'icon-spinner animated': testing(), 'icon-white': testContactsSuccess() || testContactsError() }"></i>
+						&nbsp;&nbsp;
+						Test
+					</a>
+				</div>
+			</div>
+		</div>
+		<div data-bind="visible: 'sqlite' === contactsType()">
+			<div class="control-group">
+				<div class="controls">
+					<div class="alert alert-null-left-margin span8">
+						<h4>Notice!</h4>
+						<br />
+						Don't use this database type with a large number of active users.
+					</div>
+				</div>
+			</div>
+			<div class="control-group">
+				<div class="controls">
+					<a class="btn" data-bind="command: testContactsCommand, css: { 'btn-success': testContactsSuccess, 'btn-danger': testContactsError }">
+						<i data-bind="css: {'icon-info': !testing(), 'icon-spinner animated': testing(), 'icon-white': testContactsSuccess() || testContactsError() }"></i>
+						&nbsp;&nbsp;
+						Test
+					</a>
+				</div>
+			</div>
+		</div>
+		<div class="control-group" data-bind="visible: '' !== testContactsErrorMessage()">
+			<div class="controls">
+				<div class="row">
+					<div class="alert span8" data-bind="text: testContactsErrorMessage"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

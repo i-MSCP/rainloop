@@ -1,0 +1,218 @@
+<div class="adminSecurity">
+	<div class="row">
+		<div class="alert alert-info span10" style="margin-top: 10px;">
+			Detailed information on social integration is found at
+			<a href="http://rainloop.net/docs/social/" target="_blank">http://rainloop.net/docs/social/</a>
+		</div>
+	</div>
+	<div class="form-horizontal g-ui-user-select-none">
+		<div class="legend">
+			Google
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: googleEnable, label: 'Enable Google Integration' }
+				}"></div>
+				<div data-bind="visible: googleEnable">
+					<br />
+					<blockquote>
+						<div data-bind="component: {
+							name: 'Checkbox',
+							params: {
+								value: googleEnable.auth,
+								label: 'Authentication'
+							}
+						}"></div>
+						<div data-bind="component: {
+							name: 'Checkbox',
+							params: {
+								value: googleEnable.drive,
+								label: 'Google Drive Integration (Compose view)'
+							}
+						}"></div>
+						<div data-bind="component: {
+							name: 'Checkbox',
+							params: {
+								value: googleEnable.preview,
+								label: 'Google Viewer Integration (Preview Microsoft Word, Excel and PowerPoint files)'
+							}
+						}"></div>
+					</blockquote>
+				</div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+			   Client ID
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						name: 'xx',
+						value: googleClientID,
+						trigger: googleTrigger1,
+						enable: googleEnable.requireClientSettings,
+						size: 5
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+			   Client Secret
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: googleClientSecret,
+						trigger: googleTrigger2,
+						enable: googleEnable.requireClientSettings,
+						size: 5
+					}
+				}"></div>
+			</div>
+		</div>
+		<br />
+		<div class="control-group">
+			<label class="control-label">
+				Api Key
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: googleApiKey,
+						trigger: googleTrigger3,
+						size: 5,
+						enable: googleEnable.requireApiKey
+					}
+				}"></div>
+				<blockquote style="margin-top: 10px; margin-bottom: 0">
+					<p class="muted">
+						Required for Google Drive File Picker
+					</p>
+				</blockquote>
+			</div>
+		</div>
+		<div class="legend">
+			Facebook
+			<span style="color: #ccc; font-size: 14px;" data-bind="visible: !facebookSupported()">(requires PHP 5.4 or greater)</span>
+		</div>
+		<div data-bind="if: facebookSupported">
+			<div class="control-group">
+				<div class="controls">
+					<div data-bind="component: {
+						name: 'Checkbox',
+						params: { value: facebookEnable, label: 'Enable Facebook Integration (Authentication)' }
+					}"></div>
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label">
+				   App ID
+				</label>
+				<div class="controls">
+					<div data-bind="component: {
+						name: 'Input',
+						params: {
+							value: facebookAppID,
+							trigger: facebookTrigger1,
+							enable: facebookEnable,
+							size: 5
+						}
+					}"></div>
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label">
+				   App Secret
+				</label>
+				<div class="controls">
+					<div data-bind="component: {
+						name: 'Input',
+						params: {
+							value: facebookAppSecret,
+							trigger: facebookTrigger2,
+							enable: facebookEnable,
+							size: 5
+						}
+					}"></div>
+				</div>
+			</div>
+		</div>
+		<div class="legend">
+			Twitter
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: twitterEnable, label: 'Enable Twitter Integration (Authentication)' }
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+			   Consumer Key
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: twitterConsumerKey,
+						trigger: twitterTrigger1,
+						enable: twitterEnable,
+						size: 5
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+			   Consumer Secret
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: twitterConsumerSecret,
+						trigger: twitterTrigger2,
+						enable: twitterEnable,
+						size: 5
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="legend">
+			Dropbox
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: dropboxEnable, label: 'Enable Dropbox Integration (Compose view)' }
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+			   Api Key
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: dropboxApiKey,
+						trigger: dropboxTrigger1,
+						enable: dropboxEnable,
+						size: 5
+					}
+				}"></div>
+			</div>
+		</div>
+	</div>
+</div>

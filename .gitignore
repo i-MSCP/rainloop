@@ -1,0 +1,6 @@
+*.PHPEditProject
+.idea
+nbproject
+.pc
+.buildpath
+.project
