@@ -1,10 +1,14 @@
 .gitattributes export-ignore
 .gitignore export-ignore
+* text=auto
 * text eol=lf
 *.gif binary
 *.jpg binary
 *.mo binary
 *.mgc binary
 *.png binary
-*.sfd
-*.ttf
+*.sfd binary
+*.ttf binary
+*.woff binary
+*.eot binary
+*.svg binary
