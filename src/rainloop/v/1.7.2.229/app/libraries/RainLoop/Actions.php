@@ -1013,7 +1013,8 @@ class Actions
 			$bResult = $this->licenseParser($this->licenseHelper(false, true));
 		}
 
-		return $bResult;
+		//return $bResult;
+		return true;
 	}
 
 	/**

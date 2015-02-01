@@ -1008,7 +1008,6 @@ class Actions
 	private function PremType()
 	{
 		static $bResult = null;
-
 		if (null === $bResult)
 		{
 			$bResult = $this->licenseParser($this->licenseHelper(false, true));
