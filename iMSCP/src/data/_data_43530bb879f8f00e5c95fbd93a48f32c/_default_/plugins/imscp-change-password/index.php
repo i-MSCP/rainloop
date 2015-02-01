@@ -87,7 +87,7 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
 	{
 		return array(
 			\RainLoop\Plugins\Property::NewInstance('pdo_dsn')->SetLabel('i-MSCP PDO dsn')
-				->SetDefaultValue('mysql:host=127.0.0.1;;port=3306;dbname=imscp'),
+				->SetDefaultValue('mysql:host=127.0.0.1;port=3306;dbname=imscp'),
 			\RainLoop\Plugins\Property::NewInstance('user')->SetLabel('DB User')
 				->SetDefaultValue('rainloop_user'),
 			\RainLoop\Plugins\Property::NewInstance('password')->SetLabel('DB Password')

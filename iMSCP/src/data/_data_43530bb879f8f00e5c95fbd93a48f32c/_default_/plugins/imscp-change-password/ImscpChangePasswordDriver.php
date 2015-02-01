@@ -126,8 +126,20 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
 				$oPdo = new \PDO($this->sDsn, $this->sUser, $this->sPassword);
 				$oPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-				$oStmt = $oPdo->prepare('UPDATE mail_users SET mail_pass = ? WHERE mail_addr = ?');
-				$bResult = (bool)$oStmt->execute(array($sNewPassword, $oAccount->IncLogin()));
+				$oStmt = $oPdo->prepare('SELECT mail_pass, mail_addr FROM mail_users WHERE mail_addr = ? LIMIT 1');
+
+				if($oStmt->execute(array($oAccount->IncLogin()))) {
+					$aFetchResult = $oStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+					if (\is_array($aFetchResult) && isset($aFetchResult[0]['mail_pass'], $aFetchResult[0]['mail_addr'])) {
+						$sDbPassword = \stripslashes($aFetchResult[0]['mail_pass']);
+
+						if (\stripslashes($sPrevPassword) === $sDbPassword) {
+							$oStmt = $oPdo->prepare('UPDATE mail_users SET mail_pass = ? WHERE mail_addr = ?');
+							$bResult = (bool)$oStmt->execute(array($sNewPassword, $aFetchResult[0]['mail_addr']));
+						}
+					}
+				}
 			} catch(\Exception $oException) {
 				if($this->oLogger) {
 					$this->oLogger->WriteException($oException);
