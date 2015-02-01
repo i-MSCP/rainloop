@@ -1,10 +1,10 @@
 {
   "name": "imscp/rainloop",
-  "description": "iMSCP rainloop webmail package",
+  "description": "iMSCP RainLoop webmail package",
   "version": "1.7.2.229",
   "authors": [
     {
-      "name": "The Rainloop Team",
+      "name": "The RainLoop Team",
       "email": "support@rainloop.net.",
       "homepage": "http://rainloop.net/"
     }

@@ -25,7 +25,7 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
 	/**
 	 * Initialization
 	 *
-	 * @çeturn void
+	 * @return void
 	 */
 	public function Init()
 	{
