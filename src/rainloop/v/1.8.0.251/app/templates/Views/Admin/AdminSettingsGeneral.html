@@ -1,0 +1,149 @@
+<div class="b-admin-general">
+	<div class="row" data-bind="visible: weakPassword">
+		<div class="alert alert-error span8" style="margin-top: 10px;">
+			<h4>Warning!</h4>
+			<br />
+			You are using the default admin password.
+			<br />
+			For security reasons please <strong><a href="#/security">change</a></strong>
+			password to something else now.
+		</div>
+	</div>
+	<div class="form-horizontal">
+		<div class="legend">
+			Interface
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+				Language
+			</label>
+			<div class="controls">
+				<div class="flag-selector">
+					<span class="flag-wrapper">
+						<span data-bind="css: 'flag flag-' + language()" style=""></span>
+					</span>
+					<span class="flag-name" data-bind="text: languageFullName, click: selectLanguage"></span>
+					&nbsp;&nbsp;
+					<div data-bind="component: {
+						name: 'SaveTrigger',
+						params: { value: languageTrigger }
+					}"></div>
+				</div>
+			</div>
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+				Theme
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Select',
+					params: {
+						options: themesOptions,
+						value: theme,
+						trigger: themeTrigger,
+						optionsText: 'optText',
+						optionsValue: 'optValue',
+						size: 2
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow language selection on settings screen',
+						value: allowLanguagesOnSettings
+					}
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow theme selection on settings screen',
+						value: capaThemes
+					}
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow background selection on settings screen',
+						value: capaUserBackground
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Show thumbnails (attachments)',
+						value: capaAttachmentThumbnails,
+						inline: false
+					}
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow Gravatar',
+						value: capaGravatar,
+						inline: true
+					}
+				}"></div>
+				(<a class="g-ui-link" href="http://en.gravatar.com/" target="_blank">http://en.gravatar.com/</a>)
+			</div>
+		</div>
+		<div class="legend">
+			Main
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+				Attachment
+				size limit
+			</label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						label: 'MB',
+						value: mainAttachmentLimit,
+						trigger: attachmentLimitTrigger,
+						size: 1
+					}
+				}"></div>
+				<br />
+				<br />
+				<span class="well well-small" data-bind="visible: '' !== uploadDataDesc">
+					<b>PHP:</b>
+					&nbsp;
+					<span data-bind="text: uploadDataDesc"></span>
+				</span>
+				&nbsp;&nbsp;&nbsp;
+				<a href="#" target="_blank" class="btn btn-small" data-bind="link: phpInfoLink()">
+					<i class="icon-info"></i>
+				</a>
+			</div>
+		</div>
+		<br />
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow additional accounts',
+						value: capaAdditionalAccounts
+					}
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						label: 'Allow additional identities',
+						value: capaAdditionalIdentities
+					}
+				}"></div>
+			</div>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,110 @@
+<div class="adminSecurity g-ui-user-select-none">
+	<div class="form-horizontal">
+		<div class="legend">
+			Security
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: capaTwoFactorAuth, label: 'Allow 2-Step Verification' }
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: useLocalProxyForExternalImages, label: 'Use local proxy for external images' }
+				}"></div>
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: capaOpenPGP, label: 'Allow OpenPGP', inline: true }
+				}"></div>
+				&nbsp;&nbsp;
+				<span style="color:red">(beta)</span>
+			</div>
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<a href="#" target="_blank" class="g-ui-link" data-bind="link: phpInfoLink()">Show PHP information</a>
+			</div>
+		</div>
+	</div>
+	<div class="form-horizontal">
+		<div class="legend">
+			Admin Panel Access Credentials
+		</div>
+		<div class="control-group">
+			<label class="control-label">
+				Current password
+			</label>
+			<div class="controls">
+				<input type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+					data-bind="textInput: adminPassword" />
+			</div>
+		</div>
+		<br />
+		<div class="control-group" data-bind="css: {'error': adminLoginError}">
+			<label class="control-label">
+				New login
+			</label>
+			<div class="controls">
+				<input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+					data-bind="textInput: adminLogin" />
+			</div>
+		</div>
+		<div class="control-group" data-bind="css: {'error': adminPasswordNewError}">
+			<label class="control-label">
+				New password
+			</label>
+			<div class="controls">
+				<input type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+					data-bind="textInput: adminPasswordNew" />
+			</div>
+		</div>
+		<div class="control-group" data-bind="css: {'error': adminPasswordNewError}">
+			<label class="control-label">
+				Repeat
+			</label>
+			<div class="controls">
+				<input type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+					data-bind="textInput: adminPasswordNew2" />
+			</div>
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<a class="btn" data-bind="command: saveNewAdminPasswordCommand, css: { 'btn-success': adminPasswordUpdateSuccess, 'btn-danger': adminPasswordUpdateError }">
+					<i class="icon-key" data-bind="css: {'icon-white': adminPasswordUpdateSuccess() || adminPasswordUpdateError() }"></i>
+					&nbsp;&nbsp;
+					Update Password
+				</a>
+			</div>
+		</div>
+	</div>
+	<div class="form-horizontal">
+		<div class="legend">
+			SSL
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						value: verifySslCertificate,
+						label: 'Require verification of SSL certificate used (IMAP/SMTP)',
+						inline: true
+					}
+				}"></div>
+				&nbsp;&nbsp;
+				<span style="color:red">(unstable)</span>
+				<br />
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: {
+						enable: verifySslCertificate,
+						value: allowSelfSigned,
+						label: 'Allow self signed certificates'
+					}
+				}"></div>
+
+			</div>
+		</div>
+	</div>
+</div>

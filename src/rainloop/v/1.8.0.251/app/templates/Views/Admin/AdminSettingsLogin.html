@@ -1,0 +1,39 @@
+<div class="b-admin-general">
+	<div class="form-horizontal">
+		<div class="legend">
+			Login Screen
+		</div>
+		<div class="control-group">
+			 <label class="control-label">
+				Default Domain
+			 </label>
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Input',
+					params: {
+						value: defaultDomain,
+						trigger: defaultDomainTrigger,
+						size: 3
+					}
+				}"></div>
+			</div>
+		</div>
+		<div class="control-group">
+			<div class="controls">
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: determineUserDomain, label: 'Try to determine user domain' }
+				}"></div>
+				<br />
+				<div data-bind="component: {
+					name: 'Checkbox',
+					params: { value: allowLanguagesOnLogin, label: 'Allow language selection on login screen' }
+				}"></div>
+				<div data-bind="visible: allowLanguagesOnLogin, component: {
+					name: 'Checkbox',
+					params: { enable: allowLanguagesOnLogin, value: determineUserLanguage, label: 'Try to determine user language' }
+				}"></div>
+			</div>
+		</div>
+	</div>
+</div>
