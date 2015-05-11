@@ -1,7 +1,7 @@
 {
   "name": "imscp/rainloop",
-  "description": "iMSCP RainLoop package",
-  "version": "1.8.0.251",
+  "description": "iMSCP RainLoop Community package",
+  "version": "1.9.0.325",
   "authors": [
     {
       "name": "The RainLoop Team",
@@ -9,7 +9,7 @@
       "homepage": "http://rainloop.net/"
     }
   ],
-  "license": "CC-BY-NC-SA-3.0",
+  "license": "AGPL-3.0",
   "keywords": [
     "imscp",
     "rainloop",
