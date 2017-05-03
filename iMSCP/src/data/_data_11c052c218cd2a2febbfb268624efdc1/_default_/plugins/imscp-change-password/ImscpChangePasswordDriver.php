@@ -139,7 +139,7 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
                     }
 
                     $oStmt = $oPdo->prepare('UPDATE mail_users SET mail_pass = ? WHERE mail_addr = ?');
-                    $bResult = (bool)$oStmt->execute(array($sNewPassword, $aFetchResult[0]['mail_addr']));
+                    $bResult = (bool)$oStmt->execute(array($sNewPassword, $aFetchResult['mail_addr']));
                 }
             } catch (\Exception $oException) {
                 if ($this->oLogger) {
