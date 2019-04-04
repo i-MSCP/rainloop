@@ -1,6 +1,3 @@
-# i-MSCP RainLoop Community Package
+# RainLoop for i-MSCP internet Multi Server Control Panel
 
-Repository which provides the i-MSCP RainLoop Community package ( composer ). This package is automatically fetched and
-installed by the i-MSCP installer when selected.
-
-Upstream release: 1.9.0.325 ( Community version )
+This package provide the RainLoop Webmail client for i-MSCP.

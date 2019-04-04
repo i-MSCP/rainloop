@@ -1,6 +1,5 @@
-*.PHPEditProject
-.idea
-nbproject
-.pc
-.buildpath
-.project
+/clover.xml
+/coveralls-upload.json
+/phpunit.xml
+/vendor/
+/.idea/
