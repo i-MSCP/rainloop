@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright (C) 2015-2017 Laurent Declercq <l.declercq@nuxwin.com>
+ * Copyright (C) 2015-2019 Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -61,17 +61,32 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
     {
         switch ($sName) {
             case 'change-password':
-                $sDsn = \trim($this->Config()->Get('plugin', 'pdo_dsn', ''));
-                $sUser = (string)$this->Config()->Get('plugin', 'user', '');
-                $sPassword = (string)$this->Config()->Get('plugin', 'password', '');
+                $sDsn = \trim($this->Config()->Get(
+                    'imscp_password_change', 'pdo_dsn', ''
+                ));
+                $sUser = (string)$this->Config()->Get(
+                    'imscp_password_change', 'user', ''
+                );
+                $sPassword = (string)$this->Config()->Get(
+                    'imscp_password_change', 'password', ''
+                );
 
-                if (!empty($sDsn) && 0 < \strlen($sUser) && 0 < \strlen($sPassword)) {
+                if (!empty($sDsn)
+                    && 0 < \strlen($sUser)
+                    && 0 < \strlen($sPassword)
+                ) {
                     include_once __DIR__ . '/ImscpChangePasswordDriver.php';
 
                     $oProvider = new ImscpChangePasswordDriver();
-                    $oProvider->SetLogger($this->Manager()->Actions()->Logger());
+                    $oProvider->SetLogger(
+                        $this->Manager()->Actions()->Logger()
+                    );
                     $oProvider->SetConfig($sDsn, $sUser, $sPassword);
-                    $oProvider->SetAllowedEmails(\strtolower(\trim($this->Config()->Get('plugin', 'allowed_emails', ''))));
+                    $oProvider->SetAllowedEmails(\strtolower(\trim(
+                        $this->Config()->Get(
+                            'imscp_password_change', 'allowed_emails', ''
+                        )
+                    )));
                 }
 
                 break;
@@ -89,7 +104,9 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
             \RainLoop\Plugins\Property::NewInstance('pdo_dsn')
                 ->SetLabel('i-MSCP PDO dsn')
                 ->SetType(\RainLoop\Enumerations\PluginPropertyType::STRING)
-                ->SetDefaultValue('mysql:host=localhost;port=3306;dbname=imscp'),
+                ->SetDefaultValue(
+                    'mysql:host=localhost;port=3306;dbname=imscp'
+                ),
             \RainLoop\Plugins\Property::NewInstance('user')
                 ->SetLabel('i-MSCP DB User')
                 ->SetType(\RainLoop\Enumerations\PluginPropertyType::STRING)
@@ -100,7 +117,9 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
                 ->SetDefaultValue(''),
             \RainLoop\Plugins\Property::NewInstance('allowed_emails')
                 ->SetLabel('Allowed emails')
-                ->SetType(\RainLoop\Enumerations\PluginPropertyType::STRING_TEXT)
+                ->SetType(
+                    \RainLoop\Enumerations\PluginPropertyType::STRING_TEXT
+                )
                 ->SetDescription('Allowed emails, space as delimiter, wildcard supported. Example: user1@domain1.net user2@domain1.net *@domain2.net')
                 ->SetDefaultValue('*')
         );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright (C) 2015-2017 Laurent Declercq <l.declercq@nuxwin.com>
+ * Copyright (C) 2015-2019 Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,8 @@
 /**
  * Class ImscpChangePasswordDriver
  */
-class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\ChangePasswordInterface
+class ImscpChangePasswordDriver implements
+    \RainLoop\Providers\ChangePassword\ChangePasswordInterface
 {
     const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -102,7 +103,9 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
     {
         return $oAccount
             && $oAccount->Email()
-            && \RainLoop\Plugins\Helper::ValidateWildcardValues($oAccount->Email(), $this->sAllowedEmails);
+            && \RainLoop\Plugins\Helper::ValidateWildcardValues(
+                $oAccount->Email(), $this->sAllowedEmails
+            );
     }
 
     /**
@@ -113,33 +116,58 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
      * @param string $sNewPassword New password
      * @return bool TRUE on success, FALSE on failure
      */
-    public function ChangePassword(\RainLoop\Account $oAccount, $sPrevPassword, $sNewPassword)
-    {
+    public function ChangePassword(
+        \RainLoop\Account $oAccount,
+        $sPrevPassword,
+        $sNewPassword
+    ) {
         if ($this->oLogger) {
-            $this->oLogger->Write('iMSCP: Try to change password for ' . $oAccount->Email());
+            $this->oLogger->Write(
+                'iMSCP: Try to change password for ' . $oAccount->Email()
+            );
         }
 
         $bResult = false;
 
-        if (!empty($this->sDsn) && 0 < \strlen($this->sUser) && 0 < \strlen($this->sPassword) && $oAccount) {
+        if (!empty($this->sDsn)
+            && 0 < \strlen($this->sUser)
+            && 0 < \strlen($this->sPassword)
+            && $oAccount
+        ) {
             try {
                 $oPdo = new \PDO($this->sDsn, $this->sUser, $this->sPassword);
                 $oPdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-                $oStmt = $oPdo->prepare('SELECT mail_pass, mail_addr FROM mail_users WHERE mail_addr = ? LIMIT 1');
+                $oStmt = $oPdo->prepare(
+                    '
+                        SELECT `mail_pass`, `mail_addr`
+                        FROM `mail_users`
+                        WHERE `mail_addr` = ?
+                        LIMIT 1'
+                );
 
-                if ($oStmt->execute(array($oAccount->IncLogin())) && $oStmt->rowCount()) {
+                if ($oStmt->execute([$oAccount->IncLogin()])
+                    && $oStmt->rowCount()
+                ) {
                     $aFetchResult = $oStmt->fetch(\PDO::FETCH_ASSOC);
-                    $sDbPassword = \stripslashes($aFetchResult['mail_pass']);
+                    $sPrevPasswordHash = \stripslashes($aFetchResult['mail_pass']);
                     $sPrevPassword = \stripslashes($sPrevPassword);
 
-                    if ($this->PasswordVerify($sPrevPassword, $sDbPassword)) { # sha512 password (i-MSCP >= 1.4.x)
-                        $sNewPassword = $this->HashPassword($sNewPassword);
-                    } elseif ($sDbPassword !== $sDbPassword) { # Plain password ( iMSCP < 1.4.x)
+                    if (!$this->PasswordVerify($sPrevPassword, $sPrevPasswordHash)) {
                         return $bResult;
                     }
 
-                    $oStmt = $oPdo->prepare('UPDATE mail_users SET mail_pass = ? WHERE mail_addr = ?');
-                    $bResult = (bool)$oStmt->execute(array($sNewPassword, $aFetchResult['mail_addr']));
+                    $sNewPassword = $this->PasswordHash($sNewPassword);
+
+                    $oStmt = $oPdo->prepare(
+                        '
+                            UPDATE mail_users
+                            SET mail_pass = ?
+                            WHERE mail_addr = ?
+                        '
+                    );
+                    $bResult = (bool)$oStmt->execute([
+                        $sNewPassword, $aFetchResult['mail_addr']
+                    ]);
                 }
             } catch (\Exception $oException) {
                 if ($this->oLogger) {
@@ -154,10 +182,11 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
     /**
      * Generates a secure random string
      *
-     * @throws \InvalidArgumentException|\RuntimeException
      * @param int $length Expected string length
-     * @param string $charList character list to use for string generation (default is Base 64 character set)
+     * @param string $charList character list to use for string generation
+     *                        (default is Base 64 character set)
      * @return string
+     * @throws \InvalidArgumentException|\RuntimeException
      */
     private function RandomStr($length, $charList = self::BASE64)
     {
@@ -167,7 +196,9 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
 
         $length = (int)$length;
         if ($length < 1) {
-            throw new \InvalidArgumentException('Length parameter value must be >= 1');
+            throw new \InvalidArgumentException(
+                'Length parameter value must be >= 1'
+            );
         }
 
         $listLen = \strlen($charList);
@@ -193,18 +224,21 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
      * @param string $password The password to be hashed
      * @return string
      */
-    private function HashPassword($password)
+    private function PasswordHash($password)
     {
-        return \crypt($password, '$6$rounds=' . \sprintf('%1$04d', \rand(3000, 5000)) . '$' . static::RandomStr(16));
+        return \crypt($password,
+            '$6$rounds=' . \sprintf('%1$04d', \rand(3000, 5000)) . '$'
+            . static::RandomStr(16)
+        );
     }
 
     /**
      * Timing attack safe string comparison
      *
-     * @see hash_equals()
      * @param string $knownString The string of known length to compare against
      * @param string $userString The user-supplied string
      * @return bool
+     * @see hash_equals()
      */
     private function HashEqual($knownString, $userString)
     {
@@ -231,10 +265,10 @@ class ImscpChangePasswordDriver implements \RainLoop\Providers\ChangePassword\Ch
     /**
      * Verify the given password against the given hash
      *
-     * @throws \InvalidArgumentException
      * @param string $password The password to be checked
      * @param string $hash The hash to be checked against
      * @return bool
+     * @throws \InvalidArgumentException
      */
     private function PasswordVerify($password, $hash)
     {

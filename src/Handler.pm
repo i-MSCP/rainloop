@@ -25,9 +25,7 @@ package Package::WebmailClients::RainLoop::Handler;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::Composer /;
 use File::Spec;
-use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Crypt qw/ decryptRijndaelCBC encryptRijndaelCBC randomStr /;
 use iMSCP::Cwd '$CWD';
@@ -35,7 +33,7 @@ use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
-use iMSCP::Execute qw/ execute executeNoWait /;
+use iMSCP::Execute qw/ escapeShell execute /;
 use iMSCP::File;
 use iMSCP::Rights 'setRights';
 use iMSCP::Stepper qw/ startDetail endDetail step /;
@@ -66,83 +64,6 @@ sub preinstall
 
     local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
 
-    # Needed for scripts execution
-    my $rs = $self->setGuiPermissions();
-    return $rs if $rs;
-
-    eval {
-        return if iMSCP::Getopt->skipComposerUpdate;
-
-        my $composer = iMSCP::Composer->new(
-            user                 => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            composer_home        => "$CWD/data/persistent/.composer",
-            composer_working_dir => "$CWD/vendor/imscp/roundcube/roundcubemail",
-            composer_json        => 'composer.json-dist'
-        );
-        $composer->setStdRoutines(
-            sub {},
-            sub {
-                chomp( $_[0] );
-                return unless length $_[0];
-
-                debug( $_[0] );
-                step( undef, <<"EOT", 2, 1 );
-Installing/Updating RainLoop PHP dependencies...
-
-$_[0]
-
-Depending on your internet connection speed, this may take few seconds...
-EOT
-            }
-        );
-
-        $composer->dumpComposerJson();
-
-        startDetail();
-
-        # Install/Update RainLoop PHP dependencies
-        $composer->update( TRUE );
-
-        # Install RainLoop Javascript dependencies
-        my $stderr;
-        executeNoWait(
-            $self->_getSuCmd(
-                "$CWD/vendor/imscp/roundcube/roundcubemail/bin/install-jsdeps.sh"
-            ),
-            sub {
-                chomp( $_[0] );
-                return unless length $_[0];
-
-                # See https://github.com/roundcube/roundcubemail/issues/6704
-                die( sprintf(
-                    "Couldn't install RainLoop Javascript dependencies: %s",
-                    $_[0]
-                )) if $_[0] =~ /^error/i;
-
-                debug( $_[0] );
-                step( undef, <<"EOT", 2, 2 );
-Installing RainLoop Javascript dependencies...
-
-$_[0]
-
-Depending on your internet connection speed, this may take few seconds...
-EOT
-            },
-            sub {
-                chomp( $_[0] );
-                return unless length $_[0];
-                $stderr .= "$_[0]";
-            }
-        ) == 0 or die( sprintf(
-            "Couldn't install RainLoop Javascript dependencies: %s", $stderr || 'Unknown error'
-        ));
-        endDetail();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
     $self->{'events'}->register(
         'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile
     );
@@ -162,28 +83,12 @@ sub install
 
     local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
 
-    my $rs ||= $self->_buildConfigFiles();
+    my $rs = $self->_applyPatches();
+    $rs ||= $self->_installDataFiles();
+    $rs ||= $self->_buildConfigFiles();
     $rs ||= $self->_buildHttpdConfigFile();
-    # Need to be done before database setup as the RainLoop scripts
-    # rely on SQL user to create/update database.
-    $rs ||= $self->_setupSqlUser();
     $rs ||= $self->_setupDatabase();
-    return $rs if $rs;
-
-    eval {
-        iMSCP::Dir->new( dirname => "$CWD/data/logs/roundcube" )->make( {
-            user           => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            group          => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            mode           => 0755,
-            fixpermissions => TRUE
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    $rs ||= $self->_setupSqlUser();
 }
 
 =item postinstall( )
@@ -198,19 +103,19 @@ sub postinstall
 {
     local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
 
-    if ( -l "$CWD/public/tools/RainLoop" ) {
+    if ( -l "$CWD/public/tools/rainloop" ) {
         my $rs = iMSCP::File->new(
-            filename => "$CWD/public/tools/RainLoop"
+            filename => "$CWD/public/tools/rainloop"
         )->delFile();
         return $rs if $rs;
     }
 
     unless ( symlink( File::Spec->abs2rel(
-        "$CWD/vendor/imscp/roundcube/roundcubemail/public_html", "$CWD/public/tools"
+        "$CWD/vendor/imscp/rainloop/rainloop", "$CWD/public/tools"
     ),
-        "$CWD/public/tools/roundcube"
+        "$CWD/public/tools/rainloop"
     ) ) {
-        error( sprintf( "Couldn't create symlink for RainLoop webmail" ));
+        error( sprintf( "Couldn't create symlink for the RainLoop webmail" ));
         return 1;
     }
 
@@ -231,40 +136,29 @@ sub uninstall
 
     local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
 
-    if ( -l "$CWD/public/tools/roundcube" ) {
+    if ( -l "$CWD/public/tools/rainloop" ) {
         my $rs = iMSCP::File->new(
-            filename => "$CWD/public/tools/roundcube"
+            filename => "$CWD/public/tools/rainloop"
         )->delFile();
         return $rs if $rs;
     }
 
-    if ( -f '/etc/nginx/imscp_roundcube.conf' ) {
+    if ( -f '/etc/nginx/imscp_rainloop.conf' ) {
         my $rs = iMSCP::File->new(
-            filename => '/etc/nginx/imscp_roundcube.conf'
-        )->delFile();
-        return $rs if $rs;
-    }
-
-    for my $dir ( 'cron.d', 'logrotate.d' ) {
-        next unless -f "/etc/$dir/imscp_roundcube";
-
-        my $rs = iMSCP::File->new(
-            filename => "/etc/$dir/imscp_roundcube"
+            filename => '/etc/nginx/imscp_rainloop.conf'
         )->delFile();
         return $rs if $rs;
     }
 
     eval {
-        iMSCP::Dir->new( dirname => "$CWD/data/logs/roundcube" )->remove();
-
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         $self->{'dbh'}->do(
-            "DROP DATABASE IF EXISTS @{ [ $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_roundcube' ) ] }"
+            "DROP DATABASE IF EXISTS @{ [ $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ) ] }"
         );
 
         my ( $databaseUser ) = @{ $self->{'dbh'}->selectcol_arrayref(
-            "SELECT `value` FROM `config` WHERE `name` = 'ROUNDCUBE_SQL_USER'"
+            "SELECT `value` FROM `config` WHERE `name` = 'RAINLOOP_SQL_USER'"
         ) };
 
         if ( defined $databaseUser ) {
@@ -282,8 +176,10 @@ sub uninstall
         }
 
         $self->{'dbh'}->do(
-            "DELETE FROM `config` WHERE `name` LIKE 'ROUNDCUBE_%'"
+            "DELETE FROM `config` WHERE `name` LIKE 'RAINLOOP_%'"
         );
+
+        iMSCP::Dir->new( dirname => "$CWD/data/persistent/rainloop" )->remove();
     };
     if ( $@ ) {
         error( $@ );
@@ -293,56 +189,63 @@ sub uninstall
     0;
 }
 
-=item setGuiPermissions
+=item deleteMail( \%data )
 
- Set GUI permissions
+ Delete any RainLoop data that belong to the given mail account
 
- Return int 0 on success, other on failure
-
-=cut
-
-sub setGuiPermissions
-{
-    local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
-
-    setRights( "$CWD/vendor/imscp/roundcube/roundcubemail/bin", {
-        dirmode   => '0755',
-        filemode  => '0755',
-        recursive => TRUE
-    } );
-}
-
-=item deleteMail( \%moduleData )
-
- Process deleteMail tasks
- Param hashref \%moduleData Data as provided by the Mail module
+ Param hashref \%data Data as provided by the Mail module
  Return int 0 on success, other on failure 
 
 =cut
 
 sub deleteMail
 {
-    my ( $self, $moduleData ) = @_;
+    my ( $self, $data ) = @_;
 
-    return unless $moduleData->{'MAIL_TYPE'} =~ /_mail/;
+    return 0 unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
+    local $@;
     eval {
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+        my $quotedDatabase = $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+
         $self->{'dbh'}->do(
             "
-                DELETE FROM @{ [ $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_roundcube' ) ] }.`users`
-                WHERE `username` = ?
+                DELETE u, c, p
+                FROM $quotedDatabase.`rainloop_users` AS u
+                LEFT JOIN $quotedDatabase.`rainloop_ab_contacts` AS c USING(`id_user`)
+                LEFT JOIN $quotedDatabase.`rainloop_ab_properties` AS p USING(`id_user`)
+                WHERE u.`rl_email` = ?
             ",
             undef,
-            $moduleData->{'MAIL_ADDR'}
+            $data->{'MAIL_ADDR'}
         );
+
+        # Remove unwanted characters from the email Mimic RainLoop behavior)
+        ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/i;
+        my $storageRootDir = "$CWD/data/persistent/rainloop/imscp/storage";
+
+        for my $storageType ( qw/ data cfg files / ) {
+            # Apply a right padding on the storage subdirectory with underscore
+            # character. Storage subdirectory must be 2 characters long.
+            # (Mimic RainLoop behavior)
+            my $storageSubDir = substr( $email, 0, 2 ) =~ s/\@$//r;
+            $storageSubDir .= ( '_' x ( 2-length( $storageSubDir ) ) );
+            my $storagePath = $storageRootDir . '/' . $storageType . '/' . $storageSubDir . '/' . $email . '/';
+
+            iMSCP::Dir->new( dirname => $storagePath )->remove();
+            my $dir = iMSCP::Dir->new( dirname => $storageRootDir . '/' . $storageType . '/' . $storageSubDir );
+            next unless $dir->isEmpty();
+            $dir->remove();
+        }
     };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    1;
+    0;
 }
 
 =back
@@ -377,7 +280,7 @@ sub afterFrontEndBuildConfFile
                 "# SECTION custom END.\n",
                 ${ $tplContent }
             )
-            . "    include imscp_roundcube.conf;\n"
+            . "    include imscp_rainloop.conf;\n"
             . "    # SECTION custom END.\n",
         ${ $tplContent }
     );
@@ -408,9 +311,77 @@ sub _init
     $self;
 }
 
+=item _applyPatches( )
+
+ Apply patches on MonstaFTP sources
+ 
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _applyPatches
+{
+    return 0 if -f './vendor/imscp/rainloop/src/patches/.patched';
+
+    local $CWD = './vendor/imscp/rainloop';
+
+    for my $patch ( sort { $a cmp $b } iMSCP::Dir->new(
+        dirname => './src/patches'
+    )->getFiles() ) {
+        my $rs = execute(
+            [
+                '/usr/bin/git',
+                'apply', '--verbose', '-p0', "./src/patches/$patch"
+            ],
+            \my $stdout,
+            \my $stderr
+        );
+        debug( $stdout ) if length $stdout;
+        error( $stderr || 'Unknown error' ) if $rs;
+        return $rs if $rs;
+    }
+
+    iMSCP::File->new( filename => './src/patches/.patched' )->save();
+}
+
+=item _installDataFiles
+
+ Install RainLoop data files
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _installDataFiles
+{
+    my ( $self ) = @_;
+
+    my $rs = $self->{'events'}->trigger(
+        'onBeforeRainLoopInstallDataFiles', "$CWD/data/persistent/rainloop"
+    );
+    return $rs if $rs;
+
+    local $@;
+    eval {
+        iMSCP::Dir->new(
+            dirname => "$CWD/vendor/imscp/rainloop/src/data"
+        )->rcopy(
+            "$CWD/data/persistent/rainloop", { preserve => 'no' }
+        );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    $self->{'events'}->trigger(
+        'onAfterRainLoopInstallDataFiles', "$CWD/data/persistent/rainloop"
+    );
+}
+
 =item _buildConfigFiles( )
 
- Build PhpMyadminConfiguration files 
+ Build configuration configuration files 
 
  Return int 0 on success, other on failure
   
@@ -424,32 +395,36 @@ sub _buildConfigFiles
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         my %config = @{ $self->{'dbh'}->selectcol_arrayref(
-            "SELECT `name`, `value` FROM `config` WHERE `name` LIKE 'ROUNDCUBE_%'",
+            "
+                SELECT `name`, `value`
+                FROM `config`
+                WHERE `name` LIKE 'RAINLOOP_%'
+            ",
             { Columns => [ 1, 2 ] }
         ) };
 
-        ( $config{'ROUNDCUBE_DES_KEY'} = decryptRijndaelCBC(
-            $::imscpDBKey, $::imscpDBiv, $config{'ROUNDCUBE_DES_KEY'} // ''
-        ) || randomStr( 24, iMSCP::Crypt::ALPHA64 ) );
+        ( $config{'RAINLOOP_APP_SALT'} = decryptRijndaelCBC(
+            $::imscpDBKey, $::imscpDBiv, $config{'RAINLOOP_APP_SALT'} // ''
+        ) || lc( randomStr( 96, iMSCP::Crypt::ALNUM )) );
 
-        ( $config{'ROUNDCUBE_SQL_USER'} = decryptRijndaelCBC(
-            $::imscpDBKey, $::imscpDBiv, $config{'ROUNDCUBE_SQL_USER'} // ''
-        ) || 'roundcube_' . randomStr( 6, iMSCP::Crypt::ALPHA64 ) );
+        ( $config{'RAINLOOP_SQL_USER'} = decryptRijndaelCBC(
+            $::imscpDBKey, $::imscpDBiv, $config{'RAINLOOP_SQL_USER'} // ''
+        ) || 'rainloop_' . randomStr( 7, iMSCP::Crypt::ALPHA64 ) );
 
-        ( $config{'ROUNDCUBE_SQL_USER_PASSWD'} = decryptRijndaelCBC(
+        ( $config{'RAINLOOP_SQL_USER_PASSWD'} = decryptRijndaelCBC(
             $::imscpDBKey,
             $::imscpDBiv,
-            $config{'ROUNDCUBE_SQL_USER_PASSWD'} // ''
+            $config{'RAINLOOP_SQL_USER_PASSWD'} // ''
         ) || randomStr( 16, iMSCP::Crypt::ALPHA64 ) );
 
         (
-            $self->{'_roundcube_sql_user'},
-            $self->{'_roundcube_control_user_passwd'}
+            $self->{'_rainloop_sql_user'},
+            $self->{'_rainloop_control_user_passwd'}
         ) = (
-            $config{'ROUNDCUBE_SQL_USER'}, $config{'ROUNDCUBE_SQL_USER_PASSWD'}
+            $config{'RAINLOOP_SQL_USER'}, $config{'RAINLOOP_SQL_USER_PASSWD'}
         );
 
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        # Save generated values in database (encrypted)
         $self->{'dbh'}->do(
             '
                 INSERT INTO `config` (`name`,`value`)
@@ -457,85 +432,79 @@ sub _buildConfigFiles
                 ON DUPLICATE KEY UPDATE `name` = `name`
             ',
             undef,
-            'ROUNDCUBE_DES_KEY',
+            'RAINLOOP_APP_SALT',
             encryptRijndaelCBC(
-                $::imscpDBKey, $::imscpDBiv, $config{'ROUNDCUBE_DES_KEY'}
+                $::imscpDBKey, $::imscpDBiv, $config{'RAINLOOP_APP_SALT'}
             ),
-            'ROUNDCUBE_SQL_USER',
+            'RAINLOOP_SQL_USER',
             encryptRijndaelCBC(
-                $::imscpDBKey, $::imscpDBiv, $config{'ROUNDCUBE_SQL_USER'}
+                $::imscpDBKey, $::imscpDBiv, $config{'RAINLOOP_SQL_USER'}
             ),
-            'ROUNDCUBE_SQL_USER_PASSWD',
+            'RAINLOOP_SQL_USER_PASSWD',
             encryptRijndaelCBC(
                 $::imscpDBKey,
                 $::imscpDBiv,
-                $config{'ROUNDCUBE_SQL_USER_PASSWD'}
+                $config{'RAINLOOP_SQL_USER_PASSWD'}
             )
         );
 
-        my $data = {
-            DES_KEY           => $config{'ROUNDCUBE_DES_KEY'},
-            DATABASE_HOSTNAME => ::setupGetQuestion( 'DATABASE_HOST' ),
-            DATABASE_PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
-            DATABASE_NAME     => ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube',
-            DATABASE_USER     => $config{'ROUNDCUBE_SQL_USER'},
-            DATABASE_PASSWORD => $config{'ROUNDCUBE_SQL_USER_PASSWD'},
-            LOG_DIR           => $CWD . '/data/logs/roundcube',
-            TMP_DIR           => $CWD . '/data/tmp/'
-        };
+        # RainLoop SALT file
 
-        my $rs = $self->{'events'}->trigger(
-            'onLoadTemplate', 'roundcube', 'config.inc.php', \my $cfgTpl, $data
-        );
+        my $file = iMSCP::File->new( filename => "$CWD/data/persistent/rainloop/SALT.php" );
+        $file->set( '<php //' . $config{'RAINLOOP_APP_SALT'} ); # No EOL (expected)
+        my $rs = $file->save();
         return $rs if $rs;
 
-        unless ( defined $cfgTpl ) {
-            $cfgTpl = iMSCP::File->new(
-                filename => "$CWD/vendor/imscp/roundcube/src/config.inc.php"
-            )->get();
-            return 1 unless defined $cfgTpl;
-        }
+        # Rainloop main configuration file
+        # i-MSCP plugin change password configuration file
 
-        $cfgTpl = process( $data, $cfgTpl );
+        for my $conffile ( 'application.ini', 'plugin-imscp-change-password.ini' ) {
+            my $data = {
+                DATABASE_HOSTNAME => ::setupGetQuestion( 'DATABASE_HOST' ),
+                DATABASE_PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
+                DATABASE_NAME     => $conffile eq 'application.ini'
+                    ? ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop'
+                    : ::setupGetQuestion( 'DATABASE_NAME' ),
+                DATABASE_USER     => $config{'RAINLOOP_SQL_USER'},
+                DATABASE_PASSWORD => $config{'RAINLOOP_SQL_USER_PASSWD'},
+                DISTRO_CA_BUNDLE  => $::imscpConfig{'DISTRO_CA_BUNDLE'},
+                DISTRO_CA_PATH    => $::imscpConfig{'DISTRO_CA_PATH'}
+            };
 
-        my $file = iMSCP::File->new(
-            filename => "$CWD/vendor/imscp/roundcube/roundcubemail/config/config.inc.php"
-        );
-        $file->set( $cfgTpl );
-        $rs = $file->save();
-        $rs ||= $file->owner(
-            $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'}
-        );
+            $rs = $self->{'events'}->trigger( 'onLoadTemplate', 'rainloop', $conffile, \my $cfgTpl, $data );
+            return $rs if $rs;
 
-        # Cron and logrotate configuration files
-        for my $dir ( 'cron.d', 'logrotate.d' ) {
-            next unless -f "$CWD/vendor/imscp/roundcube/src/$dir/imscp_roundcube";
+            unless ( defined $cfgTpl ) {
+                $cfgTpl = iMSCP::File->new(
+                    filename => "$CWD/data/persistent/rainloop/imscp/configs/$conffile"
+                )->get();
+                return 1 unless defined $cfgTpl;
+            }
 
-            my $fileC = iMSCP::File->new(
-                filename => "$CWD/vendor/imscp/roundcube/src/$dir/imscp_roundcube"
-            )->getAsRef();
+            $cfgTpl = process( $data, $cfgTpl );
 
-            ${ $fileC } = process(
-                {
-                    GUI_ROOT_DIR => $CWD,
-                    USER         => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-                    GROUP        => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'}
-                },
-                ${ $fileC }
+            $file = iMSCP::File->new(
+                filename => "$CWD/data/persistent/rainloop/imscp/configs/$conffile"
             );
-
-            $file = iMSCP::File->new( filename => "/etc/$dir/imscp_roundcube" );
-            $file->set( ${ $fileC } );
+            $file->set( $cfgTpl );
             $rs = $file->save();
             return $rs if $rs;
         }
 
-        0;
+        # RainLoop custom include file
+
+        $file = iMSCP::File->new(
+            filename => "$CWD/vendor/imscp/rainloop/rainloop/include.php"
+        );
+        return 1 unless defined( my $fileC = $file->getAsRef());
+
+        ${ $fileC } = process( { GUI_ROOT_DIR => $CWD }, ${ $fileC } );
+
+        $file->save();
     };
     if ( $@ ) {
         error( $@ );
-        return 1;
+        $rs = 1;
     }
 
     $rs;
@@ -552,16 +521,89 @@ sub _buildConfigFiles
 sub _buildHttpdConfigFile
 {
     my $rs = iMSCP::File->new(
-        filename => "$CWD/vendor/imscp/roundcube/src/nginx.conf"
-    )->copyFile( '/etc/nginx/imscp_roundcube.conf' );
+        filename => "$CWD/vendor/imscp/rainloop/src/nginx.conf"
+    )->copyFile( '/etc/nginx/imscp_rainloop.conf' );
     return $rs if $rs;
 
-    my $file = iMSCP::File->new( filename => '/etc/nginx/imscp_roundcube.conf' );
+    my $file = iMSCP::File->new( filename => '/etc/nginx/imscp_rainloop.conf' );
     return 1 unless defined( my $fileC = $file->getAsRef());
 
     ${ $fileC } = process( { GUI_ROOT_DIR => $CWD }, ${ $fileC } );
 
     $file->save();
+}
+
+=item _setupDatabase( )
+
+ Setup datbase for RainLoop
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setupDatabase
+{
+    my ( $self ) = @_;
+
+    my $rs = eval {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+        my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop';
+        my $quotedDatabase = $self->{'dbh'}->quote_identifier( $database );
+
+        $self->{'dbh'}->do(
+            "
+                CREATE DATABASE IF NOT EXISTS $quotedDatabase
+                CHARACTER SET utf8 COLLATE utf8_unicode_ci
+            "
+        );
+
+        my $schemaVersion = 0;
+
+        if ( $self->{'dbh'}->selectrow_hashref(
+            "SHOW TABLES FROM $quotedDatabase LIKE 'rainloop_system'"
+        ) ) {
+            my $row = $self->{'dbh'}->selectrow_hashref(
+                "
+                    SELECT `value_int`
+                    FROM $quotedDatabase.`rainloop_system`
+                    WHERE `sys_name` = 'mysql-ab-version_version'
+                "
+            );
+            $schemaVersion = $row->{'value_int'} if $row;
+        }
+
+        for my $schemaUpdate (
+            sort { $a cmp $b } iMSCP::Dir->new(
+                dirname => "$CWD/vendor/imscp/rainloop/src/sql"
+            )->getFiles()
+        ) {
+            ( my $schemaUpdateVersion ) = $schemaUpdate =~ /^0+(.*)\.sql$/;
+
+            next if $schemaVersion >= $schemaUpdateVersion;
+
+            my $rs = execute(
+                '/usr/bin/mysql '
+                    . escapeShell( $database )
+                    . ' < '
+                    . escapeShell( "$CWD/vendor/imscp/rainloop/src/sql/$schemaUpdate"
+                ),
+                \my $stdout,
+                \my $stderr
+            );
+            debug( $stdout ) if length $stdout;
+            error( $stderr || 'Unknown error' ) if $rs;
+            return $rs if $rs;
+
+            $schemaVersion = $schemaUpdateVersion;
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        $rs = 1;
+    }
+
+    $rs;
 }
 
 =item _setupSqlUser( )
@@ -577,24 +619,24 @@ sub _setupSqlUser
     my ( $self ) = @_;
 
     eval {
-        my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube';
-        my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+        my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop';
+        my $databaseUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
         my $sqlServer = Servers::sqld->factory();
 
-        for my $host ( $::imscpOldConfig{'DATABASE_USER_HOST'}, $dbUserHost ) {
+        for my $host ( $::imscpOldConfig{'DATABASE_USER_HOST'}, $databaseUserHost ) {
             next unless length $host;
-            $sqlServer->dropUser( $self->{'_roundcube_sql_user'}, $host );
+            $sqlServer->dropUser( $self->{'_rainloop_sql_user'}, $host );
         }
 
         $sqlServer->createUser(
-            $self->{'_roundcube_sql_user'},
-            $dbUserHost,
-            $self->{'_roundcube_control_user_passwd'}
+            $self->{'_rainloop_sql_user'},
+            $databaseUserHost,
+            $self->{'_rainloop_control_user_passwd'}
         );
 
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
-        # Grant 'all' privileges on the imscp_roundcube database
+        # Grant 'all' privileges on the imscp_rainloop database
         # No need to escape wildcard characters.
         $self->{'dbh'}->do(
             "
@@ -602,8 +644,8 @@ sub _setupSqlUser
                 TO ?\@?
             ",
             undef,
-            $self->{'_roundcube_sql_user'},
-            $dbUserHost
+            $self->{'_rainloop_sql_user'},
+            $databaseUserHost
         );
 
         # Grant 'select' privileges on the imscp.mail table
@@ -616,8 +658,8 @@ sub _setupSqlUser
                 TO ?\@?
             ",
             undef,
-            $self->{'_roundcube_sql_user'},
-            $dbUserHost
+            $self->{'_rainloop_sql_user'},
+            $databaseUserHost
         );
     };
     if ( $@ ) {
@@ -626,107 +668,6 @@ sub _setupSqlUser
     }
 
     0;
-}
-
-=item _setupDatabase( )
-
- Setup datbase for RainLoop
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _setupDatabase
-{
-    my ( $self ) = @_;
-
-    eval {
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
-
-        my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube';
-        my $quotedDatabase = $self->{'dbh'}->quote_identifier( $database );
-
-        if ( !$self->{'dbh'}->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $database )
-            || !$self->{'dbh'}->selectrow_hashref( "SHOW TABLES FROM $quotedDatabase" )
-        ) {
-            $self->{'dbh'}->do(
-                "
-                    CREATE DATABASE IF NOT EXISTS $quotedDatabase
-                    CHARACTER SET utf8 COLLATE utf8_unicode_ci
-                "
-            );
-
-            # Create RainLoop database
-            my $rs = execute(
-                $self->_getSuCmd(
-                    "$CWD/vendor/imscp/roundcube/roundcubemail/bin/initdb.sh",
-                    '--dir', "$CWD/vendor/imscp/roundcube/roundcubemail/SQL",
-                    '--package', 'roundcube'
-                ),
-                \my $stdout,
-                \my $stderr
-            );
-            debug( $stdout ) if length $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
-        } else {
-            # Update RainLoop database
-            my $rs = execute(
-                $self->_getSuCmd(
-                    "$CWD/vendor/imscp/roundcube/roundcubemail/bin/updatedb.sh",
-                    '--dir', "$CWD/vendor/imscp/roundcube/roundcubemail/SQL",
-                    '--package', 'roundcube'
-                ),
-                \my $stdout,
-                \my $stderr
-            );
-            debug( $stdout ) if length $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
-
-            # Ensure tha `users`.`mail_host` entries are set with expected hostname
-            my $hostname = 'localhost';
-            $self->{'events'}->trigger(
-                'beforeUpdateRoundCubeMailHostEntries', \$hostname
-            );
-
-            $self->{'dbh'}->do(
-                "UPDATE IGNORE $quotedDatabase.`users` SET `mail_host` = ?",
-                undef,
-                $hostname
-            );
-            $self->{'dbh'}->do(
-                "DELETE FROM $quotedDatabase.`users` WHERE `mail_host` <> ?",
-                undef,
-                $hostname
-            );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
-=item _getSuCmd( @_ )
-
- Return SU command
-
- Param list @_ Command
- Return array command
-
-=cut
-
-sub _getSuCmd
-{
-    shift;
-
-    [
-        '/bin/su',
-        '-l', $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
-        '-s', '/bin/sh',
-        '-c', "@_"
-    ];
 }
 
 =back
