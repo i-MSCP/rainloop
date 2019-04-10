@@ -222,7 +222,7 @@ sub deleteMail
             $data->{'MAIL_ADDR'}
         );
 
-        # Remove unwanted characters from the email Mimic RainLoop behavior)
+        # Remove unwanted characters from the email (Mimic RainLoop behavior)
         ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/i;
         my $storageRootDir = "$CWD/data/persistent/rainloop/imscp/storage";
 
