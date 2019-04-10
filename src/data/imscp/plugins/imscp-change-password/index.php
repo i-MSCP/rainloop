@@ -61,14 +61,10 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
     {
         switch ($sName) {
             case 'change-password':
-                $sDsn = \trim($this->Config()->Get(
-                    'imscp_password_change', 'pdo_dsn', ''
-                ));
-                $sUser = (string)$this->Config()->Get(
-                    'imscp_password_change', 'user', ''
-                );
+                $sDsn = \trim($this->Config()->Get('plugin', 'pdo_dsn', ''));
+                $sUser = (string)$this->Config()->Get('plugin', 'user', '');
                 $sPassword = (string)$this->Config()->Get(
-                    'imscp_password_change', 'password', ''
+                    'plugin', 'password', ''
                 );
 
                 if (!empty($sDsn)
@@ -83,9 +79,7 @@ class ImscpChangePasswordPlugin extends \RainLoop\Plugins\AbstractPlugin
                     );
                     $oProvider->SetConfig($sDsn, $sUser, $sPassword);
                     $oProvider->SetAllowedEmails(\strtolower(\trim(
-                        $this->Config()->Get(
-                            'imscp_password_change', 'allowed_emails', ''
-                        )
+                        $this->Config()->Get('plugin', 'allowed_emails', '')
                     )));
                 }
 
