@@ -35,7 +35,6 @@ use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ escapeShell execute /;
 use iMSCP::File;
-use iMSCP::Rights 'setRights';
 use iMSCP::Stepper qw/ startDetail endDetail step /;
 use iMSCP::TemplateParser qw/ getBloc replaceBloc process /;
 use Servers::sqld;
