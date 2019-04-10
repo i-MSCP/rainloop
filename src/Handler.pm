@@ -312,7 +312,7 @@ sub _init
 
 =item _applyPatches( )
 
- Apply patches on MonstaFTP sources
+ Apply patches on the RainLoop sources
  
  Return int 0 on success, other on failure
 
