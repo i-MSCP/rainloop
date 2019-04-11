@@ -380,7 +380,7 @@ sub _installDataFiles
 
 =item _buildConfigFiles( )
 
- Build configuration configuration files 
+ Build RainLoop configuration files
 
  Return int 0 on success, other on failure
   
