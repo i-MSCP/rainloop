@@ -149,11 +149,12 @@ sub uninstall
         return $rs if $rs;
     }
 
+    local $@;
     eval {
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         $self->{'dbh'}->do(
-            "DROP DATABASE IF EXISTS @{ [ $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ) ] }"
+            "DROP DATABASE IF EXISTS `@{ [ $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ] }`"
         );
 
         my ( $databaseUser ) = @{ $self->{'dbh'}->selectcol_arrayref(
@@ -178,7 +179,9 @@ sub uninstall
             "DELETE FROM `config` WHERE `name` LIKE 'RAINLOOP_%'"
         );
 
-        iMSCP::Dir->new( dirname => "$CWD/data/persistent/rainloop" )->remove();
+        iMSCP::Dir->new(
+            dirname => "$CWD/data/persistent/rainloop"
+        )->remove();
     };
     if ( $@ ) {
         error( $@ );
@@ -207,14 +210,14 @@ sub deleteMail
     eval {
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
-        my $quotedDatabase = $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+        my $database = $::imscpConfig{'DATABASE_NAME'} . '_rainloop';
 
         $self->{'dbh'}->do(
             "
                 DELETE u, c, p
-                FROM $quotedDatabase.`rainloop_users` AS u
-                LEFT JOIN $quotedDatabase.`rainloop_ab_contacts` AS c USING(`id_user`)
-                LEFT JOIN $quotedDatabase.`rainloop_ab_properties` AS p USING(`id_user`)
+                FROM `$database`.`rainloop_users` AS u
+                LEFT JOIN `$database`.`rainloop_ab_contacts` AS c USING(`id_user`)
+                LEFT JOIN `$database`.`rainloop_ab_properties` AS p USING(`id_user`)
                 WHERE u.`rl_email` = ?
             ",
             undef,
@@ -231,10 +234,12 @@ sub deleteMail
             # (Mimic RainLoop behavior)
             my $storageSubDir = substr( $email, 0, 2 ) =~ s/\@$//r;
             $storageSubDir .= ( '_' x ( 2-length( $storageSubDir ) ) );
-            my $storagePath = $storageRootDir . '/' . $storageType . '/' . $storageSubDir . '/' . $email . '/';
+            my $storagePath = $storageRootDir . '/' . $storageType . '/'
+                . $storageSubDir . '/' . $email . '/';
 
             iMSCP::Dir->new( dirname => $storagePath )->remove();
-            my $dir = iMSCP::Dir->new( dirname => $storageRootDir . '/' . $storageType . '/' . $storageSubDir );
+            my $dir = iMSCP::Dir->new( dirname => $storageRootDir . '/'
+                . $storageType . '/' . $storageSubDir );
             next unless $dir->isEmpty();
             $dir->remove();
         }
@@ -330,7 +335,10 @@ sub _applyPatches
         my $rs = execute(
             [
                 '/usr/bin/git',
-                'apply', '--verbose', '-p0', "./src/patches/$patch"
+                'apply',
+                '--verbose',
+                '-p0',
+                "./src/patches/$patch"
             ],
             \my $stdout,
             \my $stderr
@@ -380,7 +388,7 @@ sub _installDataFiles
 
 =item _buildConfigFiles( )
 
- Build RainLoop configuration files
+ Build RainLoop  configuration files
 
  Return int 0 on success, other on failure
   
@@ -390,6 +398,7 @@ sub _buildConfigFiles
 {
     my ( $self ) = @_;
 
+    local $@;
     my $rs = eval {
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
@@ -449,7 +458,9 @@ sub _buildConfigFiles
 
         # RainLoop SALT file
 
-        my $file = iMSCP::File->new( filename => "$CWD/data/persistent/rainloop/SALT.php" );
+        my $file = iMSCP::File->new(
+            filename => "$CWD/data/persistent/rainloop/SALT.php"
+        );
         $file->set( '<php //' . $config{'RAINLOOP_APP_SALT'} ); # No EOL (expected)
         my $rs = $file->save();
         return $rs if $rs;
@@ -470,14 +481,17 @@ sub _buildConfigFiles
                 DISTRO_CA_PATH    => $::imscpConfig{'DISTRO_CA_PATH'}
             };
 
-            $rs = $self->{'events'}->trigger( 'onLoadTemplate', 'rainloop', $conffile, \my $cfgTpl, $data );
+            $rs = $self->{'events'}->trigger(
+                'onLoadTemplate', 'rainloop', $conffile, \my $cfgTpl, $data
+            );
             return $rs if $rs;
 
             unless ( defined $cfgTpl ) {
-                $cfgTpl = iMSCP::File->new(
-                    filename => "$CWD/data/persistent/rainloop/imscp/configs/$conffile"
-                )->get();
-                return 1 unless defined $cfgTpl;
+                return 1 unless defined(
+                    $cfgTpl = iMSCP::File->new(
+                        filename => "$CWD/data/persistent/rainloop/imscp/configs/$conffile"
+                    )->get()
+                );
             }
 
             $cfgTpl = process( $data, $cfgTpl );
@@ -524,7 +538,9 @@ sub _buildHttpdConfigFile
     )->copyFile( '/etc/nginx/imscp_rainloop.conf' );
     return $rs if $rs;
 
-    my $file = iMSCP::File->new( filename => '/etc/nginx/imscp_rainloop.conf' );
+    my $file = iMSCP::File->new(
+        filename => '/etc/nginx/imscp_rainloop.conf'
+    );
     return 1 unless defined( my $fileC = $file->getAsRef());
 
     ${ $fileC } = process( { GUI_ROOT_DIR => $CWD }, ${ $fileC } );
@@ -544,15 +560,15 @@ sub _setupDatabase
 {
     my ( $self ) = @_;
 
+    local $@;
     my $rs = eval {
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop';
-        my $quotedDatabase = $self->{'dbh'}->quote_identifier( $database );
 
         $self->{'dbh'}->do(
             "
-                CREATE DATABASE IF NOT EXISTS $quotedDatabase
+                CREATE DATABASE IF NOT EXISTS `$database`
                 CHARACTER SET utf8 COLLATE utf8_unicode_ci
             "
         );
@@ -560,12 +576,12 @@ sub _setupDatabase
         my $schemaVersion = 0;
 
         if ( $self->{'dbh'}->selectrow_hashref(
-            "SHOW TABLES FROM $quotedDatabase LIKE 'rainloop_system'"
+            "SHOW TABLES FROM `$database` LIKE 'rainloop_system'"
         ) ) {
             my $row = $self->{'dbh'}->selectrow_hashref(
                 "
                     SELECT `value_int`
-                    FROM $quotedDatabase.`rainloop_system`
+                    FROM `$database`.`rainloop_system`
                     WHERE `sys_name` = 'mysql-ab-version_version'
                 "
             );
@@ -582,11 +598,8 @@ sub _setupDatabase
             next if $schemaVersion >= $schemaUpdateVersion;
 
             my $rs = execute(
-                '/usr/bin/mysql '
-                    . escapeShell( $database )
-                    . ' < '
-                    . escapeShell( "$CWD/vendor/imscp/rainloop/src/sql/$schemaUpdate"
-                ),
+                '/usr/bin/mysql ' . escapeShell( $database ) . ' < '
+                    . escapeShell( "$CWD/vendor/imscp/rainloop/src/sql/$schemaUpdate" ),
                 \my $stdout,
                 \my $stderr
             );
@@ -617,12 +630,16 @@ sub _setupSqlUser
 {
     my ( $self ) = @_;
 
+    local $@;
     eval {
         my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop';
         my $databaseUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
         my $sqlServer = Servers::sqld->factory();
 
-        for my $host ( $::imscpOldConfig{'DATABASE_USER_HOST'}, $databaseUserHost ) {
+        for my $host (
+            $::imscpOldConfig{'DATABASE_USER_HOST'},
+            $databaseUserHost
+        ) {
             next unless length $host;
             $sqlServer->dropUser( $self->{'_rainloop_sql_user'}, $host );
         }
@@ -636,10 +653,9 @@ sub _setupSqlUser
         local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         # Grant 'all' privileges on the imscp_rainloop database
-        # No need to escape wildcard characters.
         $self->{'dbh'}->do(
             "
-                GRANT ALL PRIVILEGES ON @{ [ $self->{'dbh'}->quote_identifier( $database =~ s/([%_])/\\$1/gr ) ] }.*
+                GRANT ALL PRIVILEGES ON `@{ [ $database =~ s/([%_])/\\$1/gr ] }`.*
                 TO ?\@?
             ",
             undef,
@@ -653,7 +669,7 @@ sub _setupSqlUser
         $self->{'dbh'}->do(
             "
                 GRANT SELECT (`mail_addr`, `mail_pass`), UPDATE (`mail_pass`)
-                ON @{ [ $self->{'dbh'}->quote_identifier( ::setupGetQuestion( 'DATABASE_NAME' )) ] }.`mail_users`
+                ON `@{ [ ::setupGetQuestion( 'DATABASE_NAME' ) ] }`.`mail_users`
                 TO ?\@?
             ",
             undef,

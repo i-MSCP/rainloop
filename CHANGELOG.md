@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file, in reverse 
 
 ### Fixed
 
+- CS fixes (package handler)
+- Localize $@ variable (package handler)
 - Useless import of the `iMSCP::Rights` package (package handler)
 - Useless import of the `iMSCP::Stepper` package (package handler)
 
