@@ -20,6 +20,11 @@
   "config": {
     "sort-packages": true
   },
+  "extra": {
+    "branch-alias": {
+      "dev-master": "dev-dev"
+    }
+  },
   "require": {
     "php": "^7.3",
     "imscp/composer-installers": "^1.0"
