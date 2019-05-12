@@ -26,7 +26,6 @@ package Package::WebmailClients::RainLoop::Handler;
 use strict;
 use warnings;
 use File::Spec;
-use iMSCP::Boolean;
 use iMSCP::Crypt qw/ decryptRijndaelCBC encryptRijndaelCBC randomStr /;
 use iMSCP::Cwd '$CWD';
 use iMSCP::Database;
@@ -151,8 +150,6 @@ sub uninstall
 
     local $@;
     eval {
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
-
         $self->{'dbh'}->do(
             "DROP DATABASE IF EXISTS `@{ [ $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ] }`"
         );
@@ -208,8 +205,6 @@ sub deleteMail
 
     local $@;
     eval {
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
-
         my $database = $::imscpConfig{'DATABASE_NAME'} . '_rainloop';
 
         $self->{'dbh'}->do(
@@ -271,9 +266,9 @@ sub afterFrontEndBuildConfFile
 {
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless grep (
-        $_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx'
-    );
+    return 0 unless grep ( $_ eq $tplName, qw/
+        00_master.nginx 00_master_ssl.nginx
+    / );
 
     ${ $tplContent } = replaceBloc(
         "# SECTION custom BEGIN.\n",
@@ -400,8 +395,6 @@ sub _buildConfigFiles
 
     local $@;
     my $rs = eval {
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
-
         my %config = @{ $self->{'dbh'}->selectcol_arrayref(
             "
                 SELECT `name`, `value`
@@ -562,8 +555,6 @@ sub _setupDatabase
 
     local $@;
     my $rs = eval {
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
-
         my $database = ::setupGetQuestion( 'DATABASE_NAME' ) . '_rainloop';
 
         $self->{'dbh'}->do(
@@ -649,8 +640,6 @@ sub _setupSqlUser
             $databaseUserHost,
             $self->{'_rainloop_control_user_passwd'}
         );
-
-        local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         # Grant 'all' privileges on the imscp_rainloop database
         $self->{'dbh'}->do(
