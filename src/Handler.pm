@@ -219,6 +219,8 @@ sub deleteMail
             $data->{'MAIL_ADDR'}
         );
 
+        local $CWD = $::imscpConfig{'GUI_ROOT_DIR'};
+
         # Remove unwanted characters from the email (Mimic RainLoop behavior)
         ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/i;
         my $storageRootDir = "$CWD/data/persistent/rainloop/imscp/storage";
@@ -229,14 +231,17 @@ sub deleteMail
             # (Mimic RainLoop behavior)
             my $storageSubDir = substr( $email, 0, 2 ) =~ s/\@$//r;
             $storageSubDir .= ( '_' x ( 2-length( $storageSubDir ) ) );
-            my $storagePath = $storageRootDir . '/' . $storageType . '/'
-                . $storageSubDir . '/' . $email . '/';
-
-            iMSCP::Dir->new( dirname => $storagePath )->remove();
-            my $dir = iMSCP::Dir->new( dirname => $storageRootDir . '/'
-                . $storageType . '/' . $storageSubDir );
-            next unless $dir->isEmpty();
-            $dir->remove();
+            my $storageSubPath = $storageRootDir . '/' . $storageType . '.'
+                . $storageSubDir;
+            my $storagePath = $storageSubPath . '/' . $email . '/';
+            if (-d $storagePath) {
+                iMSCP::Dir->new( dirname => $storagePath )->remove();
+            }
+            my $dir = iMSCP::Dir->new( dirname => $storageSubPath );
+            next unless (-d $storageSubPath && $dir->isEmpty());
+            if (-d $storageSubPath) {
+                $dir->remove();
+            }
         }
     };
     if ( $@ ) {
